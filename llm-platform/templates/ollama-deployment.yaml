@@ -35,7 +35,11 @@ spec:
               memory: 512Mi
             limits:
               cpu: 500m
-              memory: 1Gi
-          
-
-            
+              memory: 1500Mi
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama    
+      volumes:
+        - name: ollama-storage
+          persistentVolumeClaim:
+            claimName: ollama-models
