@@ -74,7 +74,7 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 ollama:
-  model: tinyllama
+  model: gemma:2b
 
 nodeSelector: {}
 
