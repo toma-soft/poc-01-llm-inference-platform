@@ -12,6 +12,21 @@ spec:
       labels:
         app: ollama
     spec:
+      initContainers:
+        - name: model-pull
+          image: ollama/ollama
+          command:
+            - sh
+            - -c
+            - |
+              echo "Starting temporary Ollama server..."
+              ollama serve &
+              sleep 5
+              echo "Pulling model {{ .Values.ollama.model }}"
+              ollama pull {{ .Values.ollama.model }}
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
       containers:
         - name: ollama
           image: ollama/ollama
