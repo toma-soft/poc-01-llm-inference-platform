@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: llm-api
-  tag: "0.51"
+  tag: "0.52"
   pullPolicy: IfNotPresent
 
 service:
