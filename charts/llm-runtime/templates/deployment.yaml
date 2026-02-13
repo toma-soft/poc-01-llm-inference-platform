@@ -6,11 +6,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ollama
+      app: llm-runtime
   template:
     metadata:
       labels:
-        app: ollama
+        app: llm-runtime
     spec:
       initContainers:
         - name: model-pull
@@ -22,8 +22,8 @@ spec:
               echo "Starting temporary Ollama server..."
               ollama serve &
               sleep 5
-              echo "Pulling model {{ .Values.ollama.model }}"
-              ollama pull {{ .Values.ollama.model }}
+              echo "Pulling model {{ .Values.model.name }}"
+              ollama pull {{ .Values.model.name }} || true
           volumeMounts:
             - name: ollama-storage
               mountPath: /root/.ollama
@@ -44,6 +44,15 @@ spec:
             periodSeconds: 10
           ports:
             - containerPort: 11434
+          env:
+            - name: RUNTIME_HOST
+              value: "{{ .Values.runtime.host }}"
+            - name: RUNTIME_PORT
+              value: "{{ .Values.runtime.port }}"
+            - name: TIMEOUT_SECONDS
+              value: "{{ .Values.timeoutSeconds }}"
+            - name: MAX_CONCURRENT_REQUESTS
+              value: "{{ .Values.maxConcurrentRequests }}"
           resources:
             requests:
               cpu: 100m
@@ -57,4 +66,4 @@ spec:
       volumes:
         - name: ollama-storage
           persistentVolumeClaim:
-            claimName: ollama-models
+            claimName: ollama-runtime-pvc

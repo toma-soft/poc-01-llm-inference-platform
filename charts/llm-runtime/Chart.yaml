@@ -1,0 +1,6 @@
+apiVersion: v2
+name: llm-runtime
+description: LLM runtime service (Ollama-based implementation)
+type: application
+version: 0.1.0
+appVersion: "latest"

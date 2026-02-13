@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: llm-api
+  tag: "0.45"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+runtime:
+  host: llm-runtime
+  port: 11434
+
+timeoutSeconds: 15
+maxConcurrentRequests: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
