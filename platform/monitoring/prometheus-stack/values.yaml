@@ -1,0 +1,14 @@
+kube-prometheus-stack:
+  grafana:
+    adminPassword: "admin"
+
+  prometheus:
+    prometheusSpec:
+      retention: 2d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
