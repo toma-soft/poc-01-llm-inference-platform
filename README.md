@@ -1,153 +1,162 @@
-# 🚀 PoC #1 --- Lokalna Platforma Inference LLM (Kubernetes + Ollama)
+# 🚀 poc-01-llm-inference-platform
 
 ## 📌 Opis projektu
 
-Projekt demonstracyjny przedstawiający lokalną platformę inference LLM
-uruchomioną w środowisku Kubernetes z wykorzystaniem:
+Proof of Concept platformy do inferencji LLM uruchomionej na Kubernetes,
+zbudowanej w oparciu o:
 
--   🧠 **Ollama** jako runtime modelu LLM
--   ⚙️ **FastAPI** jako warstwy API
--   📦 **Helm** do zarządzania cyklem życia aplikacji
--   ☸️ **Minikube** jako lokalny klaster Kubernetes
+-   🧠 **Ollama (llm-runtime)** -- runtime do obsługi modeli LLM
+-   ⚡ **FastAPI (llm-api)** -- warstwa API z limiterem współbieżności
+-   📊 **Prometheus** -- zbieranie metryk
+-   📈 **Grafana** -- wizualizacja i dashboardy
+-   📦 **Helm Charts** -- deklaratywne deploymenty
+-   🔁 Gotowość pod przyszłe **ArgoCD (GitOps)**
 
-System realizuje pełny przepływ inference:
-
-Klient → FastAPI → Ollama → Model → Odpowiedź
-
-------------------------------------------------------------------------
-
-## 🏗 Architektura
-
-    +--------------------+
-    |      Klient        |
-    |      (curl)        |
-    +---------+----------+
-              |
-              v
-    +--------------------+
-    |   FastAPI (API)    |
-    |  llm-llm-platform  |
-    +---------+----------+
-              |
-              | http://ollama:11434
-              v
-    +--------------------+
-    |      Ollama        |
-    |   (Runtime LLM)    |
-    +--------------------+
-
-### Wykorzystane zasoby Kubernetes
-
--   Deployment -- warstwa API (FastAPI)
--   Deployment -- runtime LLM (Ollama)
--   Service (ClusterIP) -- komunikacja wewnętrzna
--   Helm -- zarządzanie release
--   Liveness & Readiness Probes
--   Resource Requests & Limits
+Projekt został zaprojektowany tak, aby był: - Reprodukowalny - Przenośny
+(portability-first) - Monitoring-first - Gotowy pod rozwój produkcyjny
 
 ------------------------------------------------------------------------
 
-## 🛠 Wymagania
+# 🏗 Architektura
 
--   Docker / Colima
--   Minikube
--   kubectl
--   Helm
--   Python 3.11+
-
-------------------------------------------------------------------------
-
-## ▶️ Uruchomienie
-
-### 1️⃣ Start klastra
-
-``` bash
-minikube start --driver=docker --memory=2899 --cpus=2
+``` mermaid
+flowchart LR
+    User -->|HTTP| LLM_API
+    LLM_API -->|HTTP| LLM_RUNTIME
+    LLM_API -->|/metrics| Prometheus
+    Prometheus --> Grafana
 ```
 
 ------------------------------------------------------------------------
 
-### 2️⃣ Budowa obrazu API wewnątrz klastra
+# ⚡ Quick Start (5 minut)
+
+### 1️⃣ Uruchom klaster (np. Colima + Minikube)
+
+Upewnij się, że masz min. 4--5GB RAM dla klastra.
+
+### 2️⃣ Uruchom bootstrap
 
 ``` bash
-minikube image build -t llm-api:0.1 ./api
+./scripts/bootstrap.sh
+```
+
+Skrypt: - Tworzy namespace `llm` - Tworzy namespace `monitoring` -
+Deployuje llm-runtime - Deployuje llm-api - Deployuje Prometheus stack -
+Tworzy ServiceMonitor
+
+### 3️⃣ Port-forward
+
+``` bash
+kubectl port-forward svc/llm-api -n llm 8000:8000
+kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80
+```
+
+### 4️⃣ Test requestu
+
+``` bash
+curl -X POST "http://localhost:8000/generate?prompt=2%2B2%3D%3F"
 ```
 
 ------------------------------------------------------------------------
 
-### 3️⃣ Deployment przez Helm
+# 📊 Monitoring i metryki
 
-``` bash
-helm upgrade --install llm ./llm-platform
-```
+API eksportuje:
 
-------------------------------------------------------------------------
+-   `llm_requests_total`
+-   `llm_inference_seconds_bucket`
+-   `llm_inference_seconds_sum`
+-   `llm_inference_seconds_count`
 
-### 4️⃣ Pobranie modelu LLM
+### 📈 Dashboard Grafana
 
-``` bash
-kubectl exec -it deploy/ollama -- ollama pull tinyllama
-```
+Dashboard zawiera:
 
-------------------------------------------------------------------------
+-   Requests per second (RPS)
+-   Average inference duration
+-   P95 latency
+-   Error rate
 
-### 5️⃣ Test inference
+PromQL przykłady:
 
-``` bash
-kubectl port-forward deploy/llm-llm-platform 8000:8000
-```
+**RPS**
 
-W drugim terminalu:
+    rate(llm_requests_total[1m])
 
-``` bash
-curl -X POST "localhost:8000/generate?prompt=Hello"
-```
+**Średni czas inferencji**
 
-------------------------------------------------------------------------
+    rate(llm_inference_seconds_sum[1m]) 
+    / rate(llm_inference_seconds_count[1m])
 
-## 🔄 Aktualizacja aplikacji
+**P95**
 
-Po zmianie kodu API:
-
-``` bash
-minikube image build -t llm-api:<nowy-tag> ./api
-helm upgrade llm ./llm-platform --set image.tag=<nowy-tag>
-```
-
-Rollout wykona się automatycznie -- bez potrzeby ręcznego restartu.
+    histogram_quantile(0.95, rate(llm_inference_seconds_bucket[1m]))
 
 ------------------------------------------------------------------------
 
-## 🧠 Co demonstruje ten projekt
+# 🧠 llm-api -- cechy
 
--   Uruchomienie LLM w Kubernetes lokalnie\
--   Komunikację service-to-service przez DNS klastra\
--   Zarządzanie cyklem życia aplikacji przez Helm\
--   Debugowanie ReplicaSet, ServiceAccount, Probes i ImagePull\
--   Kontrolę zasobów (requests / limits)\
--   Oddzielenie warstwy API od runtime modelu
-
-------------------------------------------------------------------------
-
-## 🚧 Możliwe dalsze kroki
-
--   PersistentVolume dla przechowywania modeli
--   InitContainer do automatycznego pobierania modelu
--   Integracja z ArgoCD (GitOps)
--   Monitoring (Prometheus)
--   Autoskalowanie (HPA)
+-   Asynchroniczne requesty (httpx.AsyncClient)
+-   Semaphore limiter
+-   Dynamiczne wykrywanie aktywnego modelu
+-   Histogram metryk
+-   Logowanie z request_id
 
 ------------------------------------------------------------------------
 
-## 🎯 Cel PoC
+# 📁 Struktura repozytorium
 
-Weryfikacja możliwości uruchomienia lekkiej, samowystarczalnej platformy
-inference LLM w pełni w środowisku Kubernetes, bez zależności od usług
-chmurowych.
+    charts/
+      llm-runtime/
+      llm-api/
+
+    platform/
+      monitoring/
+        prometheus-stack/
+        servicemonitor.yaml
+
+    scripts/
+      bootstrap.sh
+
+    api/
+      main.py
 
 ------------------------------------------------------------------------
 
-## 👤 Autor
+# 🎯 Cele projektu
+
+-   Demonstracja LLM inference platformy
+-   Monitoring-first mindset
+-   Gotowość pod GitOps
+-   Fundament pod skalowanie (HPA, autoscaling, multi-model)
+
+------------------------------------------------------------------------
+
+# 🔮 Kolejne kroki
+
+-   Autoscaling llm-api
+-   Resource limits tuning
+-   Load testing
+-   ArgoCD deployment
+-   Alerty w Prometheus
+-   Tracing (OpenTelemetry)
+
+------------------------------------------------------------------------
+
+# 👨‍💻 Autor
 
 Maciej Łuszcz\
-TOMA Software
+TOMA Software\
+DevSecOps \| Cloud Native \| AI Platform Engineering
+
+------------------------------------------------------------------------
+
+# 🏁 Status
+
+✔️ LLM działa\
+✔️ Monitoring działa\
+✔️ Dashboard działa\
+✔️ Bootstrap automatyzuje klaster
+
+Projekt rozwijany dalej 🚀
