@@ -1,7 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ollama
+  name: {{ include "llm-runtime.fullname" . }}
+  labels:
+    {{- include "llm-runtime.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:

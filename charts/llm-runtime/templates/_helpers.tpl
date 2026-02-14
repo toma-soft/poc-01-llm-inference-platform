@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "llm-platform.name" -}}
+{{- define "llm-runtime.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "llm-platform.fullname" -}}
+{{- define "llm-runtime.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "llm-platform.chart" -}}
+{{- define "llm-runtime.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "llm-platform.labels" -}}
-helm.sh/chart: {{ include "llm-platform.chart" . }}
-{{ include "llm-platform.selectorLabels" . }}
+{{- define "llm-runtime.labels" -}}
+helm.sh/chart: {{ include "llm-runtime.chart" . }}
+{{ include "llm-runtime.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "llm-platform.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "llm-platform.name" . }}
+{{- define "llm-runtime.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "llm-runtime.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "llm-platform.serviceAccountName" -}}
+{{- define "llm-runtime.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "llm-platform.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "llm-runtime.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
