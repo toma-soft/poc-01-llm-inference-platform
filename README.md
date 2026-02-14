@@ -1,162 +1,166 @@
-# 🚀 poc-01-llm-inference-platform
+# 🚀 LLM Inference Platform (PoC)
 
 ## 📌 Opis projektu
 
-Proof of Concept platformy do inferencji LLM uruchomionej na Kubernetes,
-zbudowanej w oparciu o:
+Projekt **poc-01-llm-inference-platform** to praktyczne laboratorium
+DevOps + AI, którego celem jest zbudowanie mini platformy inferencyjnej
+dla modeli LLM z wykorzystaniem Kubernetes, Helm, Prometheus, Grafana
+oraz autoskalowania HPA.
 
--   🧠 **Ollama (llm-runtime)** -- runtime do obsługi modeli LLM
--   ⚡ **FastAPI (llm-api)** -- warstwa API z limiterem współbieżności
--   📊 **Prometheus** -- zbieranie metryk
--   📈 **Grafana** -- wizualizacja i dashboardy
--   📦 **Helm Charts** -- deklaratywne deploymenty
--   🔁 Gotowość pod przyszłe **ArgoCD (GitOps)**
-
-Projekt został zaprojektowany tak, aby był: - Reprodukowalny - Przenośny
-(portability-first) - Monitoring-first - Gotowy pod rozwój produkcyjny
+Projekt ewoluował z prostego PoC do **mini platformy produkcyjnej klasy
+"real-world ready"**, z monitoringiem, metrykami i autoskalowaniem CPU.
 
 ------------------------------------------------------------------------
 
-# 🏗 Architektura
+## 🎯 Cele projektu
 
-``` mermaid
-flowchart LR
-    User -->|HTTP| LLM_API
-    LLM_API -->|HTTP| LLM_RUNTIME
-    LLM_API -->|/metrics| Prometheus
-    Prometheus --> Grafana
-```
-
-------------------------------------------------------------------------
-
-# ⚡ Quick Start (5 minut)
-
-### 1️⃣ Uruchom klaster (np. Colima + Minikube)
-
-Upewnij się, że masz min. 4--5GB RAM dla klastra.
-
-### 2️⃣ Uruchom bootstrap
-
-``` bash
-./scripts/bootstrap.sh
-```
-
-Skrypt: - Tworzy namespace `llm` - Tworzy namespace `monitoring` -
-Deployuje llm-runtime - Deployuje llm-api - Deployuje Prometheus stack -
-Tworzy ServiceMonitor
-
-### 3️⃣ Port-forward
-
-``` bash
-kubectl port-forward svc/llm-api -n llm 8000:8000
-kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80
-```
-
-### 4️⃣ Test requestu
-
-``` bash
-curl -X POST "http://localhost:8000/generate?prompt=2%2B2%3D%3F"
-```
+-   Budowa API dla inferencji LLM (FastAPI)
+-   Uruchomienie runtime (Ollama) w Kubernetes
+-   Monitoring metryk aplikacyjnych i infrastrukturalnych
+-   Integracja z Prometheus + Grafana
+-   Implementacja HPA (Horizontal Pod Autoscaler)
+-   Przygotowanie chartów Helm pod przyszłe ArgoCD
+-   Automatyczny bootstrap klastra
 
 ------------------------------------------------------------------------
 
-# 📊 Monitoring i metryki
+## 🏗 Architektura
 
-API eksportuje:
+Użytkownik → LLM API (FastAPI) → LLM Runtime (Ollama) → Model (np.
+gemma)
+
+Monitoring: - Prometheus (kube-prometheus-stack) - Grafana (custom
+dashboard) - metrics-server (CPU metrics dla HPA)
+
+Autoskalowanie: - HPA dla `llm-api` - HPA dla `llm-runtime` (CPU-based +
+behavior)
+
+------------------------------------------------------------------------
+
+## 📂 Struktura repozytorium
+
+    api/
+      Dockerfile
+      main.py
+      requirements.txt
+
+    charts/
+      llm-api/
+      llm-runtime/
+
+    platform/monitoring/
+      dashboards/
+      prometheus-stack/
+
+    scripts/
+      bootstrap.sh
+
+    README.md
+
+------------------------------------------------------------------------
+
+## 📊 Monitoring metryk
+
+Platforma posiada:
+
+-   Prometheus (kube-prometheus-stack)
+-   Grafana
+-   Custom dashboard „LLM Platform Dashboard"
+
+Dashboard zawiera:
+
+-   Requests per second (RPS)
+-   Average inference latency
+-   P95 inference duration
+-   Errors per second
+
+Metryki aplikacyjne:
 
 -   `llm_requests_total`
 -   `llm_inference_seconds_bucket`
 -   `llm_inference_seconds_sum`
 -   `llm_inference_seconds_count`
 
-### 📈 Dashboard Grafana
-
-Dashboard zawiera:
-
--   Requests per second (RPS)
--   Average inference duration
--   P95 latency
--   Error rate
-
-PromQL przykłady:
-
-**RPS**
-
-    rate(llm_requests_total[1m])
-
-**Średni czas inferencji**
-
-    rate(llm_inference_seconds_sum[1m]) 
-    / rate(llm_inference_seconds_count[1m])
-
-**P95**
-
-    histogram_quantile(0.95, rate(llm_inference_seconds_bucket[1m]))
+Dashboard jest utrwalony jako ConfigMap (nie jest już ulotny).
 
 ------------------------------------------------------------------------
 
-# 🧠 llm-api -- cechy
+## 🔌 LLM API
 
--   Asynchroniczne requesty (httpx.AsyncClient)
--   Semaphore limiter
--   Dynamiczne wykrywanie aktywnego modelu
--   Histogram metryk
--   Logowanie z request_id
+Technologie: - FastAPI - httpx (async) - Prometheus client - Semaphore
+(limit równoległych requestów)
 
-------------------------------------------------------------------------
+Funkcjonalności: - `/generate` - `/health` - `/metrics`
 
-# 📁 Struktura repozytorium
+Metryki: - liczba requestów - histogram czasu inferencji
 
-    charts/
-      llm-runtime/
-      llm-api/
-
-    platform/
-      monitoring/
-        prometheus-stack/
-        servicemonitor.yaml
-
-    scripts/
-      bootstrap.sh
-
-    api/
-      main.py
+Autoskalowanie: - HPA CPU-based - target CPU: 60% - minReplicas: 1 -
+maxReplicas: 3
 
 ------------------------------------------------------------------------
 
-# 🎯 Cele projektu
+## 🧠 LLM Runtime
 
--   Demonstracja LLM inference platformy
--   Monitoring-first mindset
--   Gotowość pod GitOps
--   Fundament pod skalowanie (HPA, autoscaling, multi-model)
+Runtime oparty o **Ollama**.
+
+Funkcjonalności: - uruchamianie modelu (np. gemma) - obsługa wielu
+requestów - autoskalowanie HPA
+
+HPA dla runtime:
+
+-   target CPU: 70%
+-   minReplicas: 1
+-   maxReplicas: 2
+-   behavior:
+    -   szybki scale-up
+    -   opóźniony scale-down (stabilization window)
+
+Runtime skaluje się pod obciążeniem (CPU \~500% → 2 repliki), a po
+zakończeniu obciążenia wraca do 1 pod.
 
 ------------------------------------------------------------------------
 
-# 🔮 Kolejne kroki
+## ⚙️ Bootstrap klastra
 
--   Autoscaling llm-api
+Automatyczny skrypt:
+
+    ./scripts/bootstrap.sh
+
+Wykonuje:
+
+-   tworzenie namespace
+-   deployment llm-runtime
+-   deployment llm-api
+-   deployment Prometheus stack
+-   aplikację ServiceMonitor
+
+------------------------------------------------------------------------
+
+## 📈 Co już działa
+
+-   API z metrykami
+-   Runtime z autoskalowaniem
+-   Monitoring z dashboardem
+-   CPU-based HPA
+-   behavior w HPA
+-   Automatyczny bootstrap
+-   Helm charts gotowe pod GitOps
+
+------------------------------------------------------------------------
+
+## 🔮 Kolejne kroki
+
+-   Ingress + cert-manager
+-   Custom metrics HPA (RPS-based)
+-   Load testing (k6)
+-   ArgoCD
 -   Resource limits tuning
--   Load testing
--   ArgoCD deployment
--   Alerty w Prometheus
--   Tracing (OpenTelemetry)
+-   Production-grade values.yaml
 
 ------------------------------------------------------------------------
 
-# 👨‍💻 Autor
+## 🏁 Status
 
-Maciej Łuszcz\
-TOMA Software\
-DevSecOps \| Cloud Native \| AI Platform Engineering
+Projekt edukacyjny + DevOps lab. Mini platforma inferencyjna gotowa do
+dalszego rozwoju.
 
-------------------------------------------------------------------------
-
-# 🏁 Status
-
-✔️ LLM działa\
-✔️ Monitoring działa\
-✔️ Dashboard działa\
-✔️ Bootstrap automatyzuje klaster
-
-Projekt rozwijany dalej 🚀
