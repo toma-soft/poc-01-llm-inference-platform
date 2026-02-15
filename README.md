@@ -148,6 +148,49 @@ Wykonuje:
 
 ------------------------------------------------------------------------
 
+## 🔧 Komendy operacyjne (PoC1)
+
+Poniżej znajduje się zestaw komend używanych do pracy z PoC1 – lokalną platformą LLM Inference Platform uruchamianą na Minikube + Colima.
+
+---
+
+### 🧱 1. Uruchomienie klastra lokalnego
+
+```bash
+# Start Colima (Docker runtime)
+colima start --memory 5 --cpu 4
+
+# Start Minikube
+minikube start --memory=4500 --cpus=4
+
+# Weryfikacja
+kubectl get nodes
+
+# wlaczenie metryk minikube
+minikube addons enable metrics-server
+
+# budowanie LLM API
+helm upgrade --install llm-api ./charts/llm-api -n llm
+
+# budowanie LLM runtime
+helm upgrade --install llm-runtime ./charts/llm-runtime -n llm
+
+# Lokalny LLM 
+kubectl port-forward svc/llm-runtime 11434:11434 -n llm
+
+# Lokalne API
+kubectl port-forward svc/llm-api -n llm 8000:8000
+
+# Lokalna Grafana
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+
+# Lokalny Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090 -n monitoring
+
+```
+
+------------------------------------------------------------------------
+
 ## 🔮 Kolejne kroki
 
 -   Ingress + cert-manager
